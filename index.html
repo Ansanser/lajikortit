@@ -218,17 +218,18 @@
       document.getElementById("dialog").showModal();
     }
 
-    async function load() {
-      try {
-        const res = await fetch(SHEET_CSV_URL);
-        const text = await res.text();
-        rows = parseCSV(text);
-        render();
-      } catch (error) {
-        document.getElementById("cards").innerHTML =
-          "<p>Dataa ei saatu ladattua. Tarkista Google Sheetsin CSV-julkaisulinkki.</p>";
-      }
-    }
+ async function load() {
+  try {
+    const proxiedUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(SHEET_CSV_URL);
+    const res = await fetch(proxiedUrl);
+    const text = await res.text();
+    rows = parseCSV(text);
+    render();
+  } catch (error) {
+    document.getElementById("cards").innerHTML =
+      "<p>Dataa ei saatu ladattua. Tarkista Google Sheetsin CSV-julkaisulinkki.</p>";
+  }
+}
 
     load();
   </script>
