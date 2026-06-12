@@ -17,6 +17,7 @@
       position: sticky;
       top: 0;
       box-shadow: 0 2px 8px #0002;
+      z-index: 10;
     }
 
     h1 {
@@ -118,58 +119,7 @@
   </dialog>
 
   <script>
-    const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPOt4duscUsSyAKNK9gQpXTujtJ-g2FhAWRsYF9n86likzVLE6-p7tlZXPpuFIHYdxLD411oJKM9-S/pub?gid=0&single=true&output=csv";
-
     let rows = [];
-
-    function parseCSV(text) {
-      const result = [];
-      let row = [];
-      let cell = "";
-      let insideQuotes = false;
-
-      for (let i = 0; i < text.length; i++) {
-        const c = text[i];
-        const next = text[i + 1];
-
-        if (c === '"' && insideQuotes && next === '"') {
-          cell += '"';
-          i++;
-        } else if (c === '"') {
-          insideQuotes = !insideQuotes;
-        } else if (c === "," && !insideQuotes) {
-          row.push(cell);
-          cell = "";
-        } else if ((c === "\n" || c === "\r") && !insideQuotes) {
-          if (cell || row.length) {
-            row.push(cell);
-            result.push(row);
-            row = [];
-            cell = "";
-          }
-          if (c === "\r" && next === "\n") i++;
-        } else {
-          cell += c;
-        }
-      }
-
-      if (cell || row.length) {
-        row.push(cell);
-        result.push(row);
-      }
-
-      const headers = result.shift().map(h => h.trim());
-
-      return result
-        .filter(r => r.some(c => c.trim()))
-        .map(r => {
-          const obj = {};
-          headers.forEach((h, i) => {
-            if (h) obj[h] = (r[i] || "").trim();
-          });
-          return obj;
-        });
-    }
 
     function title(row) {
       const heimo = row["Heimo"] || "";
@@ -218,18 +168,30 @@
       document.getElementById("dialog").showModal();
     }
 
- async function load() {
-  try {
-    const proxiedUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(SHEET_CSV_URL);
-    const res = await fetch(proxiedUrl);
-    const text = await res.text();
-    rows = parseCSV(text);
-    render();
-  } catch (error) {
-    document.getElementById("cards").innerHTML =
-      "<p>Dataa ei saatu ladattua. Tarkista Google Sheetsin CSV-julkaisulinkki.</p>";
-  }
-}
+    function load() {
+      const script = document.createElement("script");
+
+      script.src =
+        "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPOt4duscUsSyAKNK9gQpXTujtJ-g2FhAWRsYF9n86likzVLE6-p7tlZXPpuFIHYdxLD411oJKM9-S/gviz/tq?tqx=out:json;responseHandler:handleSheetData&gid=0";
+
+      document.body.appendChild(script);
+    }
+
+    function handleSheetData(data) {
+      const cols = data.table.cols.map(col => col.label);
+
+      rows = data.table.rows.map(r => {
+        const obj = {};
+
+        cols.forEach((col, i) => {
+          obj[col] = r.c[i] ? r.c[i].v : "";
+        });
+
+        return obj;
+      });
+
+      render();
+    }
 
     load();
   </script>
