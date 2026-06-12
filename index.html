@@ -1,112 +1,86 @@
 <!doctype html>
 <html lang="fi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lajikortisto</title>
-
   <style>
     body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
-      background: #f4f4f4;
-      color: #222;
+      font-family: system-ui, sans-serif;
+      background: #f3f3f3;
     }
 
     header {
+      padding: 16px;
+      background: white;
       position: sticky;
       top: 0;
-      background: white;
-      padding: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      z-index: 10;
+      box-shadow: 0 2px 8px #0002;
     }
 
     h1 {
+      margin: 0;
       font-size: 22px;
-      margin: 0 0 10px;
     }
 
-    input, select {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 10px;
-      margin: 4px 0;
-      font-size: 16px;
-      border-radius: 8px;
-      border: 1px solid #ccc;
+    #count {
+      margin-top: 4px;
+      color: #666;
     }
 
-    .stats {
-      margin-top: 8px;
-      font-size: 14px;
-      color: #555;
-    }
-
-    .grid {
+    #cards {
       display: grid;
-      gap: 12px;
-      padding: 12px;
+      gap: 14px;
+      padding: 14px;
     }
 
     .card {
       background: white;
       border-radius: 14px;
       overflow: hidden;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 8px #0002;
       cursor: pointer;
     }
 
     .card img {
       width: 100%;
-      height: 180px;
+      height: 210px;
       object-fit: cover;
       background: #ddd;
     }
 
-    .card-content {
-      padding: 12px;
+    .content {
+      padding: 14px;
     }
 
     .title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
     }
 
-    .meta {
+    .sub {
       color: #666;
-      font-size: 14px;
       margin-top: 4px;
     }
 
-    .seen {
-      display: inline-block;
-      margin-top: 8px;
-      padding: 4px 8px;
-      border-radius: 999px;
-      background: #e6f4ea;
-      color: #137333;
-      font-size: 13px;
-      font-weight: 600;
-    }
-
     dialog {
-      border: none;
+      border: 0;
       border-radius: 16px;
       padding: 0;
-      width: min(92vw, 560px);
+      width: min(92vw, 540px);
       max-height: 90vh;
       overflow: auto;
     }
 
     dialog img {
       width: 100%;
-      max-height: 320px;
+      max-height: 300px;
       object-fit: cover;
       background: #ddd;
     }
 
-    .dialog-content {
+    .dialogContent {
       padding: 16px;
     }
 
@@ -116,18 +90,17 @@
 
     .field strong {
       display: block;
-      margin-bottom: 3px;
     }
 
-    button {
+    .close {
       width: 100%;
       padding: 12px;
-      font-size: 16px;
+      margin-top: 16px;
       border: 0;
       border-radius: 10px;
       background: #222;
       color: white;
-      margin-top: 12px;
+      font-size: 16px;
     }
   </style>
 </head>
@@ -135,134 +108,73 @@
 <body>
   <header>
     <h1>Lajikortisto</h1>
-    <input id="search" placeholder="Hae lajia, heimoa tai tuntomerkkejä..." />
-    <select id="groupFilter">
-      <option value="">Kaikki eliöryhmät</option>
-    </select>
-    <div class="stats" id="stats"></div>
+    <div id="count"></div>
   </header>
 
-  <main class="grid" id="cards"></main>
+  <main id="cards"></main>
 
-  <dialog id="details">
-    <div id="detailsContent"></div>
+  <dialog id="dialog">
+    <div id="dialogInner"></div>
   </dialog>
 
   <script>
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPOt4duscUsSyAKNK9gQpXTujtJ-g2FhAWRsYF9n86likzVLE6-p7tlZXPpuFIHYdxLD411oJKM9-S/pub?gid=0&single=true&output=csv";
 
-    let allRows = [];
+    let rows = [];
 
     function parseCSV(text) {
-      const rows = [];
+      const result = [];
       let row = [];
       let cell = "";
-      let inQuotes = false;
+      let insideQuotes = false;
 
       for (let i = 0; i < text.length; i++) {
-        const char = text[i];
+        const c = text[i];
         const next = text[i + 1];
 
-        if (char === '"' && inQuotes && next === '"') {
+        if (c === '"' && insideQuotes && next === '"') {
           cell += '"';
           i++;
-        } else if (char === '"') {
-          inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
+        } else if (c === '"') {
+          insideQuotes = !insideQuotes;
+        } else if (c === "," && !insideQuotes) {
           row.push(cell);
           cell = "";
-        } else if ((char === "\n" || char === "\r") && !inQuotes) {
+        } else if ((c === "\n" || c === "\r") && !insideQuotes) {
           if (cell || row.length) {
             row.push(cell);
-            rows.push(row);
+            result.push(row);
             row = [];
             cell = "";
           }
-          if (char === "\r" && next === "\n") i++;
+          if (c === "\r" && next === "\n") i++;
         } else {
-          cell += char;
+          cell += c;
         }
       }
 
       if (cell || row.length) {
         row.push(cell);
-        rows.push(row);
+        result.push(row);
       }
 
-      const headers = rows.shift().map(h => h.trim());
-      return rows
-        .filter(r => r.some(c => c.trim() !== ""))
+      const headers = result.shift().map(h => h.trim());
+
+      return result
+        .filter(r => r.some(c => c.trim()))
         .map(r => {
           const obj = {};
-          headers.forEach((h, i) => obj[h] = (r[i] || "").trim());
+          headers.forEach((h, i) => {
+            if (h) obj[h] = (r[i] || "").trim();
+          });
           return obj;
         });
     }
 
-    function isSeen(row) {
-      const value = (row.havaittu || row.Havaittu || "").toLowerCase();
-      return ["true", "yes", "kyllä", "x", "1"].includes(value);
-    }
-
     function title(row) {
-      const heimo = row.heimo || row.Heimo || "";
-      const laji = row.laji || row.Laji || "";
+      const heimo = row["Heimo"] || "";
+      const laji = row["laji"] || "";
       return heimo ? `${heimo}: ${laji}` : laji;
-    }
-
-    function imageUrl(row) {
-      return row.Kuva || row.kuva || row.Image || "";
-    }
-
-    function render() {
-      const q = document.getElementById("search").value.toLowerCase();
-      const group = document.getElementById("groupFilter").value;
-
-      const filtered = allRows.filter(row => {
-        const text = Object.values(row).join(" ").toLowerCase();
-        const elioryhma = row["eliöryhmä"] || row["Eliöryhmä"] || "";
-        return text.includes(q) && (!group || elioryhma === group);
-      });
-
-      const seenCount = filtered.filter(isSeen).length;
-      document.getElementById("stats").textContent =
-        `Näytetään ${filtered.length} lajia · havaittu ${seenCount}/${filtered.length}`;
-
-      document.getElementById("cards").innerHTML = filtered.map((row, index) => `
-        <article class="card" onclick="openDetails(${allRows.indexOf(row)})">
-          ${imageUrl(row) ? `<img src="${imageUrl(row)}" alt="">` : ""}
-          <div class="card-content">
-            <div class="title">${title(row)}</div>
-            <div class="meta">${row["eliöryhmä"] || row["Eliöryhmä"] || ""}</div>
-            ${isSeen(row) ? `<span class="seen">✓ havaittu</span>` : ""}
-          </div>
-        </article>
-      `).join("");
-    }
-
-    function openDetails(index) {
-      const row = allRows[index];
-
-      document.getElementById("detailsContent").innerHTML = `
-        ${imageUrl(row) ? `<img src="${imageUrl(row)}" alt="">` : ""}
-        <div class="dialog-content">
-          <h2>${title(row)}</h2>
-
-          ${field("Eliöryhmä", row["eliöryhmä"] || row["Eliöryhmä"])}
-          ${field("Biotooppi", row.biotooppi || row.Biotooppi)}
-          ${field("Yleisyys", row.yleisyys || row.Yleisyys)}
-          ${field("Etsiminen", row.etsiminen || row.Etsiminen)}
-          ${field("Tuntomerkit", row.tuntomerkit || row.Tuntomerkit || row["tuntomerkit suhteessa lähilajeihin"])}
-          ${field("Havaittu", isSeen(row) ? "Kyllä" : "Ei")}
-          ${field("Havaintopäivä", row.havaintopäivä || row.Havaintopäivä)}
-          ${field("Havaintopaikka", row.havaintopaikka || row.Havaintopaikka)}
-          ${field("Huomio", row.huomio || row.Huomio)}
-
-          <button onclick="document.getElementById('details').close()">Sulje</button>
-        </div>
-      `;
-
-      document.getElementById("details").showModal();
     }
 
     function field(label, value) {
@@ -270,28 +182,55 @@
       return `<div class="field"><strong>${label}</strong>${value}</div>`;
     }
 
-    async function loadData() {
-      const response = await fetch(SHEET_CSV_URL);
-      const text = await response.text();
-      allRows = parseCSV(text);
+    function render() {
+      document.getElementById("count").textContent = `${rows.length} lajia`;
 
-      const groups = [...new Set(allRows.map(r => r["eliöryhmä"] || r["Eliöryhmä"]).filter(Boolean))].sort();
-      const select = document.getElementById("groupFilter");
-
-      groups.forEach(g => {
-        const option = document.createElement("option");
-        option.value = g;
-        option.textContent = g;
-        select.appendChild(option);
-      });
-
-      render();
+      document.getElementById("cards").innerHTML = rows.map((row, i) => `
+        <article class="card" onclick="openCard(${i})">
+          ${row["Kuva"] ? `<img src="${row["Kuva"]}" alt="">` : ""}
+          <div class="content">
+            <div class="title">${title(row)}</div>
+            <div class="sub">${row["Lahko"] || ""}</div>
+          </div>
+        </article>
+      `).join("");
     }
 
-    document.getElementById("search").addEventListener("input", render);
-    document.getElementById("groupFilter").addEventListener("change", render);
+    function openCard(i) {
+      const row = rows[i];
 
-    loadData();
+      document.getElementById("dialogInner").innerHTML = `
+        ${row["Kuva"] ? `<img src="${row["Kuva"]}" alt="">` : ""}
+        <div class="dialogContent">
+          <h2>${title(row)}</h2>
+          ${field("Lahko", row["Lahko"])}
+          ${field("Heimo", row["Heimo"])}
+          ${field("Biotooppi", row["biotooppi"])}
+          ${field("Yleisyys", row["yleisyys"])}
+          ${field("Etsiminen", row["etsiminen"])}
+          ${field("Tuntomerkit suhteessa lähilajeihin", row["tuntomerkit suhteessa lähilajeihin"])}
+          ${field("Päivämäärä", row["Päivämäärä"])}
+          ${field("Paikka", row["Paikka"])}
+          <button class="close" onclick="document.getElementById('dialog').close()">Sulje</button>
+        </div>
+      `;
+
+      document.getElementById("dialog").showModal();
+    }
+
+    async function load() {
+      try {
+        const res = await fetch(SHEET_CSV_URL);
+        const text = await res.text();
+        rows = parseCSV(text);
+        render();
+      } catch (error) {
+        document.getElementById("cards").innerHTML =
+          "<p>Dataa ei saatu ladattua. Tarkista Google Sheetsin CSV-julkaisulinkki.</p>";
+      }
+    }
+
+    load();
   </script>
 </body>
 </html>
