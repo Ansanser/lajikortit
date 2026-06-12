@@ -119,81 +119,80 @@
   </dialog>
 
   <script>
-    let rows = [];
+    <script>
+  const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPOt4duscUsSyAKNK9gQpXTujtJ-g2FhAWRsYF9n86likzVLE6-p7tlZXPpuFIHYdxLD411oJKM9-S/pub?gid=0&single=true&output=csv";
 
-    function title(row) {
-      const heimo = row["Heimo"] || "";
-      const laji = row["laji"] || "";
-      return heimo ? `${heimo}: ${laji}` : laji;
-    }
+  let rows = [];
 
-    function field(label, value) {
-      if (!value) return "";
-      return `<div class="field"><strong>${label}</strong>${value}</div>`;
-    }
+  function parseCSV(text) {
+    const lines = text.trim().split(/\r?\n/);
+    const headers = lines[0].split(",").map(h => h.trim());
 
-    function render() {
-      document.getElementById("count").textContent = `${rows.length} lajia`;
+    return lines.slice(1).map(line => {
+      const values = line.split(",");
+      const obj = {};
+      headers.forEach((h, i) => obj[h] = (values[i] || "").trim());
+      return obj;
+    });
+  }
 
-      document.getElementById("cards").innerHTML = rows.map((row, i) => `
-        <article class="card" onclick="openCard(${i})">
-          ${row["Kuva"] ? `<img src="${row["Kuva"]}" alt="">` : ""}
-          <div class="content">
-            <div class="title">${title(row)}</div>
-            <div class="sub">${row["Lahko"] || ""}</div>
-          </div>
-        </article>
-      `).join("");
-    }
+  function title(row) {
+    const heimo = row["Heimo"] || "";
+    const laji = row["laji"] || "";
+    return heimo ? `${heimo}: ${laji}` : laji;
+  }
 
-    function openCard(i) {
-      const row = rows[i];
+  function field(label, value) {
+    if (!value) return "";
+    return `<div class="field"><strong>${label}</strong>${value}</div>`;
+  }
 
-      document.getElementById("dialogInner").innerHTML = `
+  function render() {
+    document.getElementById("count").textContent = `${rows.length} lajia`;
+
+    document.getElementById("cards").innerHTML = rows.map((row, i) => `
+      <article class="card" onclick="openCard(${i})">
         ${row["Kuva"] ? `<img src="${row["Kuva"]}" alt="">` : ""}
-        <div class="dialogContent">
-          <h2>${title(row)}</h2>
-          ${field("Lahko", row["Lahko"])}
-          ${field("Heimo", row["Heimo"])}
-          ${field("Biotooppi", row["biotooppi"])}
-          ${field("Yleisyys", row["yleisyys"])}
-          ${field("Etsiminen", row["etsiminen"])}
-          ${field("Tuntomerkit suhteessa lähilajeihin", row["tuntomerkit suhteessa lähilajeihin"])}
-          ${field("Päivämäärä", row["Päivämäärä"])}
-          ${field("Paikka", row["Paikka"])}
-          <button class="close" onclick="document.getElementById('dialog').close()">Sulje</button>
+        <div class="content">
+          <div class="title">${title(row)}</div>
+          <div class="sub">${row["Lahko"] || ""}</div>
         </div>
-      `;
+      </article>
+    `).join("");
+  }
 
-      document.getElementById("dialog").showModal();
-    }
+  function openCard(i) {
+    const row = rows[i];
 
-    function load() {
-      const script = document.createElement("script");
+    document.getElementById("dialogInner").innerHTML = `
+      ${row["Kuva"] ? `<img src="${row["Kuva"]}" alt="">` : ""}
+      <div class="dialogContent">
+        <h2>${title(row)}</h2>
+        ${field("Lahko", row["Lahko"])}
+        ${field("Heimo", row["Heimo"])}
+        ${field("Biotooppi", row["biotooppi"])}
+        ${field("Yleisyys", row["yleisyys"])}
+        ${field("Etsiminen", row["etsiminen"])}
+        ${field("Tuntomerkit suhteessa lähilajeihin", row["tuntomerkit suhteessa lähilajeihin"])}
+        ${field("Päivämäärä", row["Päivämäärä"])}
+        ${field("Paikka", row["Paikka"])}
+        <button class="close" onclick="document.getElementById('dialog').close()">Sulje</button>
+      </div>
+    `;
 
-      script.src =
-        "https://docs.google.com/spreadsheets/d/e/2PACX-1vTPOt4duscUsSyAKNK9gQpXTujtJ-g2FhAWRsYF9n86likzVLE6-p7tlZXPpuFIHYdxLD411oJKM9-S/gviz/tq?tqx=out:json;responseHandler:handleSheetData&gid=0";
+    document.getElementById("dialog").showModal();
+  }
 
-      document.body.appendChild(script);
-    }
+  async function load() {
+    const proxyUrl = "https://api.allorigins.win/raw?url=" + encodeURIComponent(CSV_URL);
+    const res = await fetch(proxyUrl);
+    const text = await res.text();
+    rows = parseCSV(text);
+    render();
+  }
 
-    function handleSheetData(data) {
-      const cols = data.table.cols.map(col => col.label);
-
-      rows = data.table.rows.map(r => {
-        const obj = {};
-
-        cols.forEach((col, i) => {
-          obj[col] = r.c[i] ? r.c[i].v : "";
-        });
-
-        return obj;
-      });
-
-      render();
-    }
-
-    load();
+  load();
+</script>
   </script>
 </body>
 </html>
